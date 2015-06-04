@@ -1,0 +1,296 @@
+<html>
+<script src="https://code.jquery.com/jquery-2.1.3.min.js">
+</script>
+<style>
+    .content {
+        font-size: 13px;
+        margin: 2px;
+    }
+    .item {
+        color: gray;
+    }
+    .item-highlite {
+        color: green;
+        font-weight: bold;
+    }
+    .pos {
+        color: orange;
+    }
+    .iob {
+        color: blue;
+    }
+
+    a:link { text-decoration: none; color: blue; }
+    a:visited { text-decoration: none; color: blue; }
+    a:active { text-decoration: none; color: blue; }
+    a:hover { text-decoration: underline; color: blue; }
+
+    .file-selected {
+        text-decoration: none;
+        background: lightgray;
+    }
+
+    .file-link {
+        color = "red";
+    }
+
+</style>
+<script>
+
+    currentFile='' //globals FTW!
+    currentSelection = []
+    corpusFolderCookieName="CORPUS_FOLDER_COOKIE"
+    pdfFolderCookieName="PDF_FOLDER_COOKIE"
+
+    function annotate() {
+        addProduct()
+        obj = {folder: getCorpusFolder(), filename: currentFile, product_names: currentSelection}
+        $.ajax("annotate", {
+            data : JSON.stringify(obj),
+            contentType : 'application/json',
+            type : 'POST'
+        }).done(function() {
+            currentSelection.length = 0;
+            getFile(currentFile)
+        });
+    }
+
+    function deleteCurrentFile() {
+        var theFileName = getNextFileName()
+        $.ajax("dfile?folder=" + getCorpusFolder() + "&name=" + currentFile, {
+            type : 'DELETE'
+        }).done(function() {
+            getFiles(theFileName)
+        });
+    }
+
+    function nextFile(reverse) {
+        getFile(getNextFileName(reverse))
+    }
+
+    function getNextFileName(reverse) {
+        var currentId = fileWoExt(currentFile)
+        var files = $('.file-link')
+        if(reverse) {
+            files = files.reverse()
+        }
+        var found = false
+        var nextFileName = null
+        files.each(function(index, item) {
+            if(found && !nextFileName) {// next item after found is set to true
+                nextFileName = item.id + '.txt'
+            }
+            if(item.id == currentId){
+                found = true
+            }
+        })
+        return nextFileName
+    }
+
+    function prevFile() {
+        nextFile(true)
+    }
+
+    function getFile(fileName) {
+        folderName = getCorpusFolder()
+        $.getJSON( "file?name=" + fileName + "&folder=" + folderName, function( data ) {
+          var items = [];
+          $.each( data, function( key, token ) {
+            //console.info(token)
+            if(token.value == 'LINE') {
+                items.push("<BR>")
+            }
+            clazz = token.iob == 'O' ? 'item' : 'item-highlite'
+            items.push("<span class='" + clazz + "'>" + token.value + "</span>" + "<span class='pos'>/" + token.pos + "</span>" + "<span class='iob'>/" + token.iob + "</span> ");
+          });
+
+          $("#content").empty()
+          $( "<div/>", {
+            "class": "document",
+            html: items.join( "" )
+          }).appendTo( "#content" );
+          $('.iob').hide()
+          $('.pos').hide()
+        });
+        currentFile = fileName;
+        currentSelection.length = 0;
+        getPdfFile(fileName)
+        $(".file-link").removeClass("file-selected")
+        id = "#" + fileWoExt(fileName)
+        $(id).addClass("file-selected")
+    }
+
+    function getPdfFile(fileName) {
+        $("#pdf_frame").attr("src", "pdf?name=" + fileName + "&folder=" + getPdfFolder())
+    }
+
+    function getFiles(defaultFileName) {
+        folderName = getCorpusFolder()
+        $.getJSON( "files?folder=" + folderName, function( data ) {
+          var items = [];
+          $.each( data, function( key, file ) {
+            //console.info(file)
+            zaCall = "getFile(\'"+file+"\')"
+            items.push("<a href='#' onclick=" + zaCall + "><span id='" + fileWoExt(file) + "' class='file-link'>" + file + "</span></a><BR>");
+          });
+
+          $("#files").empty()
+          $( "<div/>", {
+            "class": "document",
+            html: items.join( "" )
+          }).appendTo( "#files" );
+          if(defaultFileName){
+            getFile(defaultFileName)
+          } else {
+            getFile(data[0])
+          }
+        });
+    }
+
+    function fileWoExt(file) {
+        return file.split('.')[0]
+    }
+
+    function getCorpusFolder() {
+        return $("#corpus_folder").val()
+    }
+
+    function setCorpusFolder(value) {
+        $("#corpus_folder").val(value)
+    }
+
+    function getPdfFolder() {
+        return $("#pdf_folder").val()
+    }
+
+    function setPdfFolder(value) {
+        $("#pdf_folder").val(value)
+    }
+
+    function setCookie(cname, cvalue) {
+        exdays = 60;
+        var d = new Date();
+        d.setTime(d.getTime() + (exdays*24*60*60*1000));
+        var expires = "expires="+d.toUTCString();
+        document.cookie = cname + "=" + cvalue + "; " + expires;
+    }
+
+    function getCookie(cname) {
+        var name = cname + "=";
+        var ca = document.cookie.split(';');
+        for(var i=0; i<ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0)==' ') c = c.substring(1);
+            if (c.indexOf(name) == 0) return c.substring(name.length,c.length);
+        }
+        return "";
+    }
+
+    function addProduct() {
+        var text = "";
+        if (window.getSelection) {
+            text = window.getSelection().toString();
+        } else if (document.selection && document.selection.type != "Control") {
+            text = document.selection.createRange().text;
+        }
+        var productName = text.trim()
+        console.info("checking for: " + productName)
+        if(productName != '' && !currentSelection.contains(productName)){
+            currentSelection.push(productName)
+        }
+        console.info(currentSelection)
+    }
+
+    function init() {
+
+        var corpusFolder = getCookie(corpusFolderCookieName)
+        var pdfFolder = getCookie(pdfFolderCookieName)
+        setCorpusFolder(corpusFolder)
+        setPdfFolder(pdfFolder)
+
+        jQuery.fn.reverse = [].reverse;
+
+        Array.prototype.contains = function(obj) {
+            var i = this.length;
+            while (i--) {
+                if (this[i] === obj) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        $(document).on("keyup", function (e) {
+            // use e.which
+            // alert(e.which)
+            if (e.which == 13) { //ENTER
+                annotate()
+            } else if (e.which == 65) { //a
+                addProduct()
+            } else if (e.which == 220) { // '\'
+                nextFile()
+            } else if (e.which == 221) { // ']'
+                prevFile()
+            } else if (e.which == 8) { //delete
+                deleteCurrentFile()
+            }
+
+
+        });
+
+        $("#corpus_folder").on("keyup", function (e) {
+            // use e.which
+            // alert(e.which)
+            if (e.which == 13) { //ENTER
+                setCookie(corpusFolderCookieName, getCorpusFolder())
+                getFiles()
+            }
+
+        });
+
+        $("#pdf_folder").on("keyup", function (e) {
+            // use e.which
+            // alert(e.which)
+            if (e.which == 13) { //ENTER
+                setCookie(pdfFolderCookieName, getPdfFolder())
+            }
+
+        });
+    }
+
+    $(document).ready(function(){
+        init()
+        getFiles();
+    })
+
+</script>
+<body>
+<em>Corpus Folder</em><BR>
+<input size="70" id="corpus_folder" type="text" value="corpus/training">
+<BR><BR>
+<em>PDF Folder</em><BR>
+<input size="70" id="pdf_folder" type="text" value="">
+<BR>
+<BR>
+<button onclick="annotate()">Annotate</button>
+<button onclick="$('.pos').toggle()">Show POS tags</button>
+<button onclick="$('.iob').toggle()">Show IOB tags</button>
+<button onclick="deleteCurrentFile()">Remove from corpus</button>
+<BR>
+
+<div class="container">
+  <div style="float: left; width: 44%;"id="content" class="content"></div>
+  <div style="float: left; width: 45%;"id="pdf_content" class="content">
+      <iframe id="pdf_frame" width="100%" height="100%" frameborder="0" marginwidth="0" marginheight="0"></iframe>
+  </div>
+  <div style="float: right; width: 10%; text-align: left; height: 600px; overflow-y: auto;" id="files" class="content"></div>
+</div>
+
+<!--<table>-->
+    <!--<tr>-->
+        <!--<td valign="top"><div id="content" class="content"></div></td>-->
+        <!--<td valign="top" width="200px"><div id="files" class="content" style="width: 200px;"></div></td>-->
+    <!--</tr>-->
+<!--</table>-->
+</body>
+</html>
