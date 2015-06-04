@@ -10,4 +10,4 @@ def annotate():
 
 @app.route('/')
 def home():
-	return render_template('home.html', my_string='home template', my_list['receipt 1', 'receipt 2', 'receipt 3'])
+	return render_template('home.html', my_string='home template', my_list=['receipt 1', 'receipt 2', 'receipt 3'])
