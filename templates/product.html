@@ -265,14 +265,17 @@
 
 </script>
 <body>
-<em>Email File</em><BR>
-<input size="70" id="email file" type="text" value="">
+<em>Corpus Folder</em><BR>
+<input size="70" id="corpus_folder" type="text" value="corpus/training">
 <BR><BR>
 <em>PDF Folder</em><BR>
 <input size="70" id="pdf_folder" type="text" value="">
 <BR>
 <BR>
-<button onclick="annotate()">Itemize</button>
+<button onclick="annotate()">Annotate</button>
+<button onclick="$('.pos').toggle()">Show POS tags</button>
+<button onclick="$('.iob').toggle()">Show IOB tags</button>
+<button onclick="deleteCurrentFile()">Remove from corpus</button>
 <BR>
 
 <div class="container">
@@ -281,6 +284,16 @@
       <iframe id="pdf_frame" width="100%" height="100%" frameborder="0" marginwidth="0" marginheight="0"></iframe>
   </div>
   <div style="float: right; width: 10%; text-align: left; height: 600px; overflow-y: auto;" id="files" class="content"></div>
+</div>
+
+<div class="container">
+    <div style="float: left; width: 100%;" id="content" class="content">
+        <ul>
+            <li>product 1</li>
+            <li>product 2</li>
+            <li>product 3</li>
+        </ul>
+    </div>
 </div>
 
 <!--<table>-->
